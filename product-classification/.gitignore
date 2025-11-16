@@ -51,6 +51,9 @@ data/results/*
 *.xls
 *.pickle
 *.pkl
+# ただしサンプルファイルは除外しない
+!samples/*.csv
+!samples/*.xlsx
 
 # ログ
 *.log
