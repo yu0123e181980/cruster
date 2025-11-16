@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カテゴリーマネジメントツール</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #000000;
+            color: white;
+            overflow-x: hidden;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        /* 起動アニメーション - データビジュアライゼーション */
+        .startup-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #000000 0%, #0d1421 50%, #000000 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeOut 0.5s ease-in-out 2.5s forwards;
+            overflow: hidden;
+        }
+
+        .data-container {
+            position: relative;
+            width: 600px;
+            height: 400px;
+            perspective: 1000px;
+        }
+
+        /* 円グラフアニメーション */
+        .pie-chart {
+            position: absolute;
+            top: 50px;
+            left: 50px;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #3b82f6 0deg 120deg,
+                #1e40af 120deg 200deg,
+                #60a5fa 200deg 280deg,
+                #93c5fd 280deg 360deg
+            );
+            animation: pieFloat 2s ease-in-out, pieRotate 3s linear infinite;
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+        }
+
+        .pie-chart::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60px;
+            height: 60px;
+            background: #000000;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* 棒グラフアニメーション */
+        .bar-chart {
+            position: absolute;
+            top: 200px;
+            right: 80px;
+            width: 150px;
+            height: 100px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+            animation: barFloat 2s ease-in-out 0.3s;
+        }
+
+        .bar {
+            background: linear-gradient(to top, #1e40af, #3b82f6, #60a5fa);
+            border-radius: 4px 4px 0 0;
+            animation: barGrow 2s ease-out infinite alternate;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+
+        .bar1 { width: 20px; height: 60px; animation-delay: 0s; }
+        .bar2 { width: 20px; height: 80px; animation-delay: 0.2s; }
+        .bar3 { width: 20px; height: 45px; animation-delay: 0.4s; }
+        .bar4 { width: 20px; height: 90px; animation-delay: 0.6s; }
+        .bar5 { width: 20px; height: 70px; animation-delay: 0.8s; }
+
+        /* 折れ線グラフアニメーション */
+        .line-chart {
+            position: absolute;
+            top: 80px;
+            right: 50px;
+            width: 200px;
+            height: 80px;
+            animation: lineFloat 2s ease-in-out 0.6s;
+        }
+
+        .chart-line {
+            fill: none;
+            stroke: #3b82f6;
+            stroke-width: 3;
+            stroke-dasharray: 400;
+            stroke-dashoffset: 400;
+            animation: drawLine 2s ease-in-out 0.8s forwards;
+            filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8));
+        }
+
+        .chart-dots {
+            fill: #60a5fa;
+            animation: dotPulse 1.5s ease-in-out infinite alternate;
+            filter: drop-shadow(0 0 8px rgba(96, 165, 250, 0.8));
+        }
+
+        /* 数値データアニメーション */
+        .data-numbers {
+            position: absolute;
+            top: 120px;
+            left: 250px;
+            animation: numbersFloat 2s ease-in-out 0.9s;
+        }
+
+        .number-item {
+            font-size: 1.2rem;
+            color: #3b82f6;
+            margin: 5px 0;
+            animation: numberCount 2s ease-out infinite alternate;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+        }
+
+        .startup-text {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.8rem;
+            color: #3b82f6;
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+            animation: textDataGlow 2s ease-in-out infinite alternate;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+
+        /* アニメーション定義 */
+        @keyframes pieFloat {
+            0% { transform: translateY(100px) scale(0) rotate(0deg); opacity: 0; }
+            50% { transform: translateY(-20px) scale(1.1) rotate(180deg); opacity: 1; }
+            100% { transform: translateY(0) scale(1) rotate(360deg); opacity: 1; }
+        }
+
+        @keyframes pieRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes barFloat {
+            0% { transform: translateY(100px) scale(0); opacity: 0; }
+            100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        @keyframes barGrow {
+            from { transform: scaleY(0.8); }
+            to { transform: scaleY(1.2); }
+        }
+
+        @keyframes lineFloat {
+            0% { transform: translateX(100px) scale(0); opacity: 0; }
+            100% { transform: translateX(0) scale(1); opacity: 1; }
+        }
+
+        @keyframes drawLine {
+            to { stroke-dashoffset: 0; }
+        }
+
+        @keyframes dotPulse {
+            from { r: 4; }
+            to { r: 6; }
+        }
+
+        @keyframes numbersFloat {
+            0% { transform: translateX(-100px) scale(0); opacity: 0; }
+            100% { transform: translateX(0) scale(1); opacity: 1; }
+        }
+
+        @keyframes numberCount {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
+
+        @keyframes textDataGlow {
+            from { 
+                text-shadow: 0 0 20px rgba(59, 130, 246, 0.8); 
+                transform: translateX(-50%) scale(1);
+            }
+            to { 
+                text-shadow: 0 0 40px rgba(59, 130, 246, 1), 0 0 60px rgba(96, 165, 250, 0.8); 
+                transform: translateX(-50%) scale(1.05);
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                visibility: hidden;
+            }
+        }
+
+        /* メインコンテンツ */
+        .main-content {
+            opacity: 0;
+            animation: fadeIn 1s ease-in-out 3s forwards;
+            padding: 2rem;
+            position: relative;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 4rem;
+            animation: slideInFromTop 1s ease-out 3.2s forwards;
+            transform: translateY(-50px);
+            opacity: 0;
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3b82f6, #60a5fa, #3b82f6, transparent);
+            border-radius: 1px;
+            animation: dataLineGlow 3s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
+        }
+
+        @keyframes dataLineGlow {
+            0%, 100% { 
+                width: 200px; 
+                box-shadow: 0 0 10px rgba(59, 130, 246, 0.6); 
+            }
+            50% { 
+                width: 300px; 
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); 
+            }
+        }
+
+        @keyframes slideInFromTop {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .header h1 {
+            font-size: 3.5rem;
+            background: linear-gradient(45deg, #3b82f6, #60a5fa, #93c5fd, #dbeafe, #3b82f6);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+            animation: dataTextFlow 4s ease-in-out infinite;
+        }
+
+        @keyframes dataTextFlow {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .header p {
+            font-size: 1.3rem;
+            color: #94a3b8;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+        }
+
+        /* ホログラフィック青いカードグリッド */
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 3rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            animation: slideInFromBottom 1s ease-out 3.4s forwards;
+            transform: translateY(50px);
+            opacity: 0;
+        }
+
+        @keyframes slideInFromBottom {
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .tool-card {
+            background: linear-gradient(145deg, 
+                rgba(59, 130, 246, 0.1), 
+                rgba(30, 64, 175, 0.08), 
+                rgba(96, 165, 250, 0.12));
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+            box-shadow: 
+                0 8px 25px rgba(59, 130, 246, 0.1),
+                inset 0 0 20px rgba(59, 130, 246, 0.05);
+            text-decoration: none;
+            color: inherit;
+        }
+
+        /* 調整中カード */
+        .tool-card.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: linear-gradient(145deg, 
+                rgba(107, 114, 128, 0.1), 
+                rgba(75, 85, 99, 0.08), 
+                rgba(156, 163, 175, 0.12));
+            border-color: rgba(107, 114, 128, 0.3);
+        }
+
+        .tool-card.disabled:hover {
+            transform: none;
+            box-shadow: 
+                0 8px 25px rgba(107, 114, 128, 0.1),
+                inset 0 0 20px rgba(107, 114, 128, 0.05);
+        }
+
+        .tool-card.disabled .tool-icon {
+            background: linear-gradient(45deg, #4b5563, #6b7280, #9ca3af);
+        }
+
+        /* ホログラフィックエフェクト */
+        .tool-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(59, 130, 246, 0.15), 
+                transparent);
+            transition: left 0.6s ease;
+        }
+
+        .tool-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at center, 
+                rgba(59, 130, 246, 0.05) 0%, 
+                transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 20px;
+        }
+
+        /* ホバーエフェクト */
+        .tool-card:not(.disabled):hover::before {
+            left: 100%;
+        }
+
+        .tool-card:not(.disabled):hover::after {
+            opacity: 1;
+        }
+
+        .tool-card:not(.disabled):hover {
+            transform: translateY(-8px);
+            border-color: rgba(59, 130, 246, 0.6);
+            box-shadow: 
+                0 20px 40px rgba(59, 130, 246, 0.2),
+                0 0 30px rgba(59, 130, 246, 0.3),
+                inset 0 0 20px rgba(59, 130, 246, 0.1);
+            background: linear-gradient(145deg, 
+                rgba(59, 130, 246, 0.15), 
+                rgba(30, 64, 175, 0.12), 
+                rgba(96, 165, 250, 0.18));
+        }
+
+        .tool-card:not(.disabled):hover .ripple-effect {
+            animation: subtleRipple 1s ease-out;
+        }
+
+        .ripple-effect {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        @keyframes subtleRipple {
+            to {
+                width: 300px;
+                height: 300px;
+                opacity: 0;
+                border-color: rgba(59, 130, 246, 0.1);
+            }
+        }
+
+        .tool-icon {
+            width: 70px;
+            height: 70px;
+            margin: 0 auto 1.5rem;
+            background: linear-gradient(45deg, #1e40af, #3b82f6, #60a5fa);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .tool-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent);
+            animation: iconShine 4s ease-in-out infinite;
+        }
+
+        .tool-card:not(.disabled):hover .tool-icon {
+            transform: scale(1.1);
+            box-shadow: 
+                0 0 25px rgba(59, 130, 246, 0.6),
+                0 0 50px rgba(59, 130, 246, 0.4);
+            background: linear-gradient(45deg, #3b82f6, #60a5fa, #93c5fd);
+        }
+
+        @keyframes iconShine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            50% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+            100% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+        }
+
+        .tool-title {
+            font-size: 1.3rem;
+            margin-bottom: 0.8rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            color: #e2e8f0;
+        }
+
+        .tool-card:not(.disabled):hover .tool-title {
+            color: #60a5fa;
+            text-shadow: 0 0 10px rgba(96, 165, 250, 0.6);
+        }
+
+        .tool-description {
+            color: #94a3b8;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            transition: all 0.3s ease;
+        }
+
+        .tool-card:not(.disabled):hover .tool-description {
+            color: #cbd5e1;
+        }
+
+        .tool-card.disabled .tool-description {
+            color: #6b7280;
+        }
+
+        /* データパーティクル */
+        .data-particles {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .data-particle {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: rgba(59, 130, 246, 0.6);
+            border-radius: 50%;
+            animation: dataFloat 12s linear infinite;
+        }
+
+        @keyframes dataFloat {
+            0% { 
+                transform: translateY(100vh) translateX(0); 
+                opacity: 0; 
+            }
+            10% { opacity: 0.6; }
+            90% { opacity: 0.6; }
+            100% { 
+                transform: translateY(-100px) translateX(100px); 
+                opacity: 0; 
+            }
+        }
+
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            .tools-grid {
+                grid-template-columns: 1fr;
+                padding: 1rem;
+                gap: 2rem;
+            }
+            
+            .header h1 {
+                font-size: 2.5rem;
+            }
+            
+            .tool-card {
+                padding: 2rem;
+            }
+
+            .data-container {
+                transform: scale(0.7);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- データパーティクル背景 -->
+    <div class="data-particles" id="dataParticles"></div>
+
+    <!-- 起動アニメーション -->
+    <div class="startup-animation" id="startupAnimation">
+        <div class="data-container">
+            <!-- 円グラフ -->
+            <div class="pie-chart"></div>
+            
+            <!-- 棒グラフ -->
+            <div class="bar-chart">
+                <div class="bar bar1"></div>
+                <div class="bar bar2"></div>
+                <div class="bar bar3"></div>
+                <div class="bar bar4"></div>
+                <div class="bar bar5"></div>
+            </div>
+            
+            <!-- 折れ線グラフ -->
+            <div class="line-chart">
+                <div class="line-path">
+                    <svg viewBox="0 0 200 80">
+                        <polyline class="chart-line" points="10,60 40,40 70,50 100,20 130,35 160,15 190,25"></polyline>
+                        <circle class="chart-dots" cx="10" cy="60" r="4"></circle>
+                        <circle class="chart-dots" cx="40" cy="40" r="4"></circle>
+                        <circle class="chart-dots" cx="70" cy="50" r="4"></circle>
+                        <circle class="chart-dots" cx="100" cy="20" r="4"></circle>
+                        <circle class="chart-dots" cx="130" cy="35" r="4"></circle>
+                        <circle class="chart-dots" cx="160" cy="15" r="4"></circle>
+                        <circle class="chart-dots" cx="190" cy="25" r="4"></circle>
+                    </svg>
+                </div>
+            </div>
+            
+            <!-- 数値データ -->
+            <div class="data-numbers">
+                <div class="number-item">処理中: 27%</div>
+                <div class="number-item">ROI: 247%</div>
+                <div class="number-item">CTR: 12.4%</div>
+                <div class="number-item">CVR: 8.9%</div>
+            </div>
+            
+            <div class="startup-text">システム初期化中...</div>
+        </div>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div class="main-content" id="mainContent">
+        <div class="header">
+            <h1>カテゴリーマネジメントツール</h1>
+            <p>小売業向け 商品分析・棚割最適化システム</p>
+        </div>
+
+        <div class="tools-grid" id="toolsGrid">
+            <a href="/feature/1" class="tool-card" onmouseenter="createRipple(event)">
+                <div class="ripple-effect"></div>
+                <div class="tool-icon">🛒</div>
+                <div class="tool-title">棚割マスタ処理</div>
+                <div class="tool-description">売上データから最適な商品配置を分析し、棚割効率を向上させます</div>
+            </a>
+
+            <a href="/feature/2" class="tool-card" onmouseenter="createRipple(event)">
+                <div class="ripple-effect"></div>
+                <div class="tool-icon">🥫</div>
+                <div class="tool-title">商品自動分類</div>
+                <div class="tool-description">商品特性に基づいてクラスタリング分析を行い、効果的なグループ化を提案します</div>
+            </a>
+
+            <div class="tool-card disabled">
+                <div class="tool-icon">⚙️</div>
+                <div class="tool-title">機能3（調整中）</div>
+                <div class="tool-description">高度分析機能を開発中です。近日公開予定</div>
+            </div>
+
+            <div class="tool-card disabled">
+                <div class="tool-icon">⚙️</div>
+                <div class="tool-title">機能4（調整中）</div>
+                <div class="tool-description">高度分析機能を開発中です。近日公開予定</div>
+            </div>
+
+            <div class="tool-card disabled">
+                <div class="tool-icon">⚙️</div>
+                <div class="tool-title">機能5（調整中）</div>
+                <div class="tool-description">高度分析機能を開発中です。近日公開予定</div>
+            </div>
+
+            <div class="tool-card disabled">
+                <div class="tool-icon">⚙️</div>
+                <div class="tool-title">機能6（調整中）</div>
+                <div class="tool-description">高度分析機能を開発中です。近日公開予定</div>
+            </div>
+
+            <div class="tool-card disabled">
+                <div class="tool-icon">⚙️</div>
+                <div class="tool-title">機能7（調整中）</div>
+                <div class="tool-description">高度分析機能を開発中です。近日公開予定</div>
+            </div>
+
+            <div class="tool-card disabled">
+                <div class="tool-icon">⚙️</div>
+                <div class="tool-title">機能8（調整中）</div>
+                <div class="tool-description">高度分析機能を開発中です。近日公開予定</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // データパーティクル生成
+        function createDataParticles() {
+            const container = document.getElementById('dataParticles');
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'data-particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 12 + 's';
+                particle.style.animationDuration = (Math.random() * 5 + 10) + 's';
+                container.appendChild(particle);
+            }
+        }
+
+        // 波紋エフェクト作成
+        function createRipple(event) {
+            const card = event.currentTarget;
+            const ripple = card.querySelector('.ripple-effect');
+            
+            if (card.classList.contains('disabled')) return;
+            
+            ripple.style.animation = 'none';
+            setTimeout(() => {
+                ripple.style.animation = 'subtleRipple 1s ease-out';
+            }, 10);
+        }
+
+        // 起動アニメーション制御
+        setTimeout(() => {
+            const startupAnimation = document.getElementById('startupAnimation');
+            startupAnimation.style.display = 'none';
+        }, 3000);
+
+        // ページ初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            createDataParticles();
+            
+            // カードのアニメーション遅延設定
+            const cards = document.querySelectorAll('.tool-card');
+            cards.forEach((card, index) => {
+                card.style.animationDelay = `${2.6 + index * 0.1}s`;
+            });
+        });
+    </script>
+</body>
+</html>

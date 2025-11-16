@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>商品自動分類</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #0d1421 50%, #000000 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(45deg, #3b82f6, #60a5fa, #93c5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 2rem;
+            left: 2rem;
+            padding: 0.8rem 1.5rem;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 10px;
+            color: #60a5fa;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .back-button:hover {
+            background: rgba(59, 130, 246, 0.2);
+            transform: translateX(-5px);
+        }
+
+        .step-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .step-section {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            padding: 2rem;
+            animation: slideIn 0.8s ease-out;
+        }
+
+        .step-title {
+            font-size: 1.3rem;
+            color: #60a5fa;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .step-number {
+            background: #3b82f6;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .upload-area {
+            border: 2px dashed rgba(59, 130, 246, 0.5);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area.dragover {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: #60a5fa;
+        }
+
+        .upload-area:hover {
+            background: rgba(59, 130, 246, 0.05);
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(45deg, #3b82f6, #60a5fa);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-label:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.5);
+        }
+
+        .file-info {
+            margin-top: 1rem;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .column-mapping {
+            margin-top: 1rem;
+        }
+
+        .column-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .column-section h4 {
+            color: #60a5fa;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .column-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.8rem;
+            gap: 1rem;
+        }
+
+        .column-label {
+            min-width: 120px;
+            color: #cbd5e1;
+            font-size: 0.9rem;
+        }
+
+        .column-label.required {
+            color: #f87171;
+        }
+
+        .column-select {
+            flex: 1;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 5px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .column-select:focus {
+            outline: none;
+            border-color: #60a5fa;
+            box-shadow: 0 0 10px rgba(96, 165, 250, 0.3);
+        }
+
+        .process-button {
+            width: 100%;
+            padding: 1rem 2rem;
+            background: linear-gradient(45deg, #10b981, #34d399);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 2rem;
+            display: none;
+        }
+
+        .process-button.visible {
+            display: block;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .process-button:hover:not(:disabled) {
+            transform: scale(1.02);
+            box-shadow: 0 10px 30px rgba(16, 185, 129, 0.5);
+        }
+
+        .process-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .progress-section {
+            display: none;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2rem;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .progress-section.visible {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            border-radius: 15px;
+            width: 0%;
+            transition: width 0.5s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .status-message {
+            text-align: center;
+            color: #60a5fa;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .results-section {
+            display: none;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2rem;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .results-section.visible {
+            display: block;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .result-title {
+            font-size: 1.5rem;
+            color: #60a5fa;
+        }
+
+        .download-button {
+            padding: 0.8rem 2rem;
+            background: linear-gradient(45deg, #3b82f6, #60a5fa);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .download-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.5);
+        }
+
+        .result-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 10px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #60a5fa;
+            margin-bottom: 0.3rem;
+        }
+
+        .stat-label {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        /* 精度表示セクション */
+        .accuracy-section {
+            display: none;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-top: 2rem;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .accuracy-section.visible {
+            display: block;
+        }
+
+        .accuracy-title {
+            font-size: 1.5rem;
+            color: #10b981;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+
+        .accuracy-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .chart-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 1.5rem;
+            height: 500px;
+        }
+
+        .chart-canvas {
+            height: 450px !important;
+        }
+
+        .accuracy-table {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            height: 500px;
+        }
+
+        .accuracy-data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        .accuracy-data-table th {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 0.8rem;
+            text-align: center;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            font-weight: bold;
+        }
+
+        .accuracy-data-table td {
+            padding: 0.8rem;
+            color: #cbd5e1;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            text-align: center;
+        }
+
+        .accuracy-summary {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(16, 185, 129, 0.1);
+            border-radius: 10px;
+            border-left: 4px solid #10b981;
+        }
+
+        .filter-controls {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            display: none;
+        }
+
+        .filter-controls.visible {
+            display: block;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .filter-input, .filter-select {
+            padding: 0.5rem;
+            border-radius: 5px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+
+        .filter-button {
+            padding: 0.5rem 1rem;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            border-radius: 5px;
+            color: #60a5fa;
+            cursor: pointer;
+        }
+
+        .filter-info {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .result-table {
+            max-height: 600px;
+            overflow: auto;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 0;
+            position: relative;
+        }
+
+        .table-wrapper {
+            min-width: 1200px;
+            padding: 1rem;
+        }
+
+        .table-row {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1.2fr 1.2fr 1.2fr 1.2fr 0.8fr 1fr 1fr;
+            gap: 0.8rem;
+            padding: 0.8rem;
+            border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+            align-items: center;
+            font-size: 0.85rem;
+        }
+
+        .table-header {
+            background: rgba(30, 64, 175, 0.8);
+            border-radius: 0;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 2px solid rgba(59, 130, 246, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .confidence-high {
+            background: rgba(16, 185, 129, 0.1);
+        }
+
+        .confidence-medium {
+            background: rgba(251, 191, 36, 0.1);
+        }
+
+        .confidence-low {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .jan-matched {
+            background: rgba(139, 92, 246, 0.1);
+        }
+
+        .pagination-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .pagination-controls.visible {
+            display: flex;
+        }
+
+        .page-button {
+            padding: 0.5rem 1rem;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            border-radius: 5px;
+            color: #60a5fa;
+            cursor: pointer;
+        }
+
+        .page-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+            color: #f87171;
+            display: none;
+        }
+
+        .error-message.visible {
+            display: block;
+            animation: shake 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { 
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        @media (max-width: 1200px) {
+            .table-wrapper {
+                min-width: 900px;
+            }
+            
+            .table-row {
+                font-size: 0.8rem;
+            }
+
+            .accuracy-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .step-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .table-wrapper {
+                min-width: 600px;
+            }
+            
+            .result-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .accuracy-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-button">← メニューに戻る</a>
+    
+    <div class="container">
+        <div class="header">
+            <h1>🥫 商品自動分類</h1>
+            <p>商品特性に基づいてクラスタリング分析を行い、効果的なグループ化を提案します</p>
+        </div>
+
+        <div class="step-container">
+            <!-- ステップ1: 市場データ -->
+            <div class="step-section">
+                <div class="step-title">
+                    <div class="step-number">1</div>
+                    市場データアップロード
+                </div>
+                <div class="upload-area" id="marketUploadArea">
+                    <input type="file" id="marketFileInput" class="file-input" accept=".xlsx,.xls,.csv">
+                    <label for="marketFileInput" class="file-label">
+                        📄 市場データを選択
+                    </label>
+                    <div class="file-info">
+                        <p>またはここにファイルをドラッグ＆ドロップ</p>
+                        <p id="marketFileName"></p>
+                    </div>
+                </div>
+                
+                <!-- 列マッピング（市場データ） -->
+                <div class="column-mapping" id="marketColumnMapping" style="display: none;">
+                    <div class="column-section">
+                        <h4>基本情報</h4>
+                        <div class="column-row">
+                            <div class="column-label required">JAN *</div>
+                            <select class="column-select" id="marketJanCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                        <div class="column-row">
+                            <div class="column-label required">商品名 *</div>
+                            <select class="column-select" id="marketProductCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                        <div class="column-row">
+                            <div class="column-label">規格</div>
+                            <select class="column-select" id="marketStandardCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                        <div class="column-row">
+                            <div class="column-label">メーカー</div>
+                            <select class="column-select" id="marketManufacturerCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                        <div class="column-row">
+                            <div class="column-label">容器</div>
+                            <select class="column-select" id="marketContainerCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                        <div class="column-row">
+                            <div class="column-label">平均価格</div>
+                            <select class="column-select" id="marketAvgPriceCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="column-section">
+                        <h4>分類情報</h4>
+                        <div class="column-row">
+                            <div class="column-label">大分類</div>
+                            <select class="column-select" id="marketCategoryCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                        <div class="column-row">
+                            <div class="column-label">中分類</div>
+                            <select class="column-select" id="marketSubcategoryCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                        <div class="column-row">
+                            <div class="column-label">小分類</div>
+                            <select class="column-select" id="marketSegmentCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                        <div class="column-row">
+                            <div class="column-label">細分類</div>
+                            <select class="column-select" id="marketSubsegmentCol">
+                                <option value="">選択してください</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ステップ2: トライアルマスター -->
+            <div class="step-section">
+                <div class="step-title">
+                    <div class="step-number">2</div>
+                    トライアルマスターアップロード
+                </div>
+                <div class="upload-area" id="trialUploadArea">
+                    <input type="file" id="trialFileInput" class="file-input" accept=".xlsx,.xls,.csv">
+                    <label for="trialFileInput" class="file-label">
+                        📄 トライアルマスターを選択
+                    </label>
+                    <div class="file-info">
+                        <p>またはここにファイルをドラッグ＆ドロップ</p>
+                        <p id="trialFileName"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="processButton" class="process-button">
+            分類実行
+        </button>
+
+        <div class="progress-section" id="progressSection">
+            <div class="status-message" id="statusMessage">処理中...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+
+        <!-- 精度表示セクション -->
+        <div class="accuracy-section" id="accuracySection">
+            <h2 class="accuracy-title">📊 予測精度検証結果</h2>
+            <div class="accuracy-content">
+                <div class="chart-container">
+                    <canvas id="accuracyChart" class="chart-canvas"></canvas>
+                </div>
+                <div class="accuracy-table">
+                    <h4 style="color: #10b981; margin-bottom: 1rem;">詳細データ</h4>
+                    <table class="accuracy-data-table" id="accuracyTable"></table>
+                </div>
+            </div>
+            <div class="accuracy-summary" id="accuracySummary"></div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="result-header">
+                <h2 class="result-title">分類結果</h2>
+                <button class="download-button" id="downloadButton">
+                    📥 結果をダウンロード
+                </button>
+            </div>
+            
+            <div class="result-stats" id="resultStats"></div>
+            
+            <!-- フィルターコントロール -->
+            <div class="filter-controls" id="filterControls">
+                <div class="filter-row">
+                    <div class="filter-group">
+                        <label style="color: #60a5fa;">検索:</label>
+                        <input type="text" id="searchInput" placeholder="JAN・商品名で検索..." class="filter-input">
+                    </div>
+                    <div class="filter-group">
+                        <label style="color: #60a5fa;">ステータス:</label>
+                        <select id="statusFilter" class="filter-select">
+                            <option value="all">全て</option>
+                            <option value="jan_matched">JAN一致</option>
+                            <option value="ml_high">高信頼度</option>
+                            <option value="ml_medium">中信頼度</option>
+                            <option value="ml_low">低信頼度</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label style="color: #60a5fa;">信頼度:</label>
+                        <select id="confidenceFilter" class="filter-select">
+                            <option value="all">全て</option>
+                            <option value="high">70%以上</option>
+                            <option value="medium">40-70%</option>
+                            <option value="low">40%未満</option>
+                        </select>
+                    </div>
+                    <button id="clearFiltersBtn" class="filter-button">クリア</button>
+                </div>
+                
+                <div class="filter-row">
+                    <div class="filter-info" id="filterInfo">表示中: 0件 / 総件数: 0件</div>
+                    <div class="filter-group">
+                        <label style="color: #60a5fa;">表示件数:</label>
+                        <select id="itemsPerPage" class="filter-select">
+                            <option value="20">20件</option>
+                            <option value="50">50件</option>
+                            <option value="100">100件</option>
+                            <option value="all">全て</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="result-table" id="resultTable">
+                <div class="table-wrapper" id="tableWrapper"></div>
+            </div>
+            
+            <!-- ページネーション -->
+            <div class="pagination-controls" id="paginationControls">
+                <button id="prevPageBtn" class="page-button">前へ</button>
+                <span id="pageInfo" style="color: #94a3b8;"></span>
+                <button id="nextPageBtn" class="page-button">次へ</button>
+            </div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+    </div>
+
+    <script>
+        // グローバル変数
+        let marketData = null;
+        let trialData = null;
+        let allResults = [];
+        let filteredResults = [];
+        let currentPage = 1;
+        let itemsPerPage = 20;
+        let currentDownloadId = null;
+        let accuracyChart = null;
+
+        // DOM要素取得
+        const elements = {
+            marketFileInput: document.getElementById('marketFileInput'),
+            trialFileInput: document.getElementById('trialFileInput'),
+            marketUploadArea: document.getElementById('marketUploadArea'),
+            trialUploadArea: document.getElementById('trialUploadArea'),
+            marketFileName: document.getElementById('marketFileName'),
+            trialFileName: document.getElementById('trialFileName'),
+            marketColumnMapping: document.getElementById('marketColumnMapping'),
+            processButton: document.getElementById('processButton'),
+            progressSection: document.getElementById('progressSection'),
+            progressFill: document.getElementById('progressFill'),
+            statusMessage: document.getElementById('statusMessage'),
+            accuracySection: document.getElementById('accuracySection'),
+            resultsSection: document.getElementById('resultsSection'),
+            downloadButton: document.getElementById('downloadButton'),
+            errorMessage: document.getElementById('errorMessage'),
+            filterControls: document.getElementById('filterControls'),
+            paginationControls: document.getElementById('paginationControls')
+        };
+
+        // ファイルドロップ処理
+        function setupFileDropzone(uploadArea, fileInput, onFileSelect) {
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    onFileSelect(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    onFileSelect(e.target.files[0]);
+                }
+            });
+        }
+
+        // 市場データファイル選択
+        setupFileDropzone(elements.marketUploadArea, elements.marketFileInput, (file) => {
+            elements.marketFileName.textContent = `選択ファイル: ${file.name}`;
+            marketData = file;
+            loadMarketFileColumns(file);
+        });
+
+        // トライアルマスターファイル選択
+        setupFileDropzone(elements.trialUploadArea, elements.trialFileInput, (file) => {
+            elements.trialFileName.textContent = `選択ファイル: ${file.name}`;
+            trialData = file;
+            checkReadyToProcess();
+        });
+
+        // 市場データの列情報を読み込み
+        async function loadMarketFileColumns(file) {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/api/product-classification/columns', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.message);
+                }
+
+                // 列選択肢を設定
+                const columnSelects = [
+                    'marketJanCol', 'marketProductCol', 'marketStandardCol', 'marketManufacturerCol',
+                    'marketContainerCol', 'marketAvgPriceCol',
+                    'marketCategoryCol', 'marketSubcategoryCol', 'marketSegmentCol', 'marketSubsegmentCol'
+                ];
+                
+                columnSelects.forEach(selectId => {
+                    const select = document.getElementById(selectId);
+                    select.innerHTML = '<option value="">選択してください</option>';
+                    data.columns.forEach(col => {
+                        const option = document.createElement('option');
+                        option.value = col;
+                        option.textContent = col;
+                        select.appendChild(option);
+                    });
+                });
+
+                elements.marketColumnMapping.style.display = 'block';
+                checkReadyToProcess();
+
+            } catch (error) {
+                showError(`列情報の読み込みエラー: ${error.message}`);
+            }
+        }
+
+        // 処理実行可能かチェック
+        function checkReadyToProcess() {
+            const marketJan = document.getElementById('marketJanCol').value;
+            const marketProduct = document.getElementById('marketProductCol').value;
+            
+            if (marketData && trialData && marketJan && marketProduct) {
+                elements.processButton.classList.add('visible');
+            } else {
+                elements.processButton.classList.remove('visible');
+            }
+        }
+
+        // 列選択変更時のチェック
+        ['marketJanCol', 'marketProductCol', 'marketStandardCol', 'marketManufacturerCol',
+         'marketContainerCol', 'marketAvgPriceCol',
+         'marketCategoryCol', 'marketSubcategoryCol', 'marketSegmentCol', 'marketSubsegmentCol']
+            .forEach(id => {
+                document.getElementById(id).addEventListener('change', checkReadyToProcess);
+            });
+
+        // 分類実行
+        elements.processButton.addEventListener('click', async () => {
+            if (!marketData || !trialData) {
+                showError('両方のファイルを選択してください');
+                return;
+            }
+
+            const requiredCols = ['marketJanCol', 'marketProductCol'];
+            for (const colId of requiredCols) {
+                if (!document.getElementById(colId).value) {
+                    showError('必須項目をすべて選択してください');
+                    return;
+                }
+            }
+
+            const formData = new FormData();
+            formData.append('market_file', marketData);
+            formData.append('trial_file', trialData);
+            formData.append('jan_column', document.getElementById('marketJanCol').value);
+            formData.append('product_column', document.getElementById('marketProductCol').value);
+            formData.append('standard_column', document.getElementById('marketStandardCol').value);
+            formData.append('manufacturer_column', document.getElementById('marketManufacturerCol').value);
+            formData.append('container_column', document.getElementById('marketContainerCol').value);
+            formData.append('avg_price_column', document.getElementById('marketAvgPriceCol').value);
+            formData.append('category_column', document.getElementById('marketCategoryCol').value);
+            formData.append('subcategory_column', document.getElementById('marketSubcategoryCol').value);
+            formData.append('segment_column', document.getElementById('marketSegmentCol').value);
+            formData.append('subsegment_column', document.getElementById('marketSubsegmentCol').value);
+
+            elements.processButton.disabled = true;
+            elements.progressSection.classList.add('visible');
+            elements.resultsSection.classList.remove('visible');
+            elements.accuracySection.classList.remove('visible');
+            elements.errorMessage.classList.remove('visible');
+
+            // プログレスバーアニメーション
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 10;
+                if (progress > 90) progress = 90;
+                elements.progressFill.style.width = `${progress}%`;
+            }, 500);
+
+            try {
+                const response = await fetch('/api/product-classification/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                clearInterval(progressInterval);
+                elements.progressFill.style.width = '100%';
+
+                if (data.error) {
+                    throw new Error(data.message);
+                }
+
+                // 結果表示
+                setTimeout(() => {
+                    allResults = data.all_results || [];
+                    filteredResults = [...allResults];
+                    currentDownloadId = data.download_id;
+                    elements.statusMessage.textContent = '分類完了！';
+                    
+                    displayResults(data);
+                    setupFilters();
+                    
+                    // 精度検証結果があれば表示
+                    if (data.validation_results) {
+                        displayAccuracyResults(data.validation_results);
+                        elements.accuracySection.classList.add('visible');
+                    }
+                    
+                    elements.resultsSection.classList.add('visible');
+                    elements.progressSection.classList.remove('visible');
+                }, 1000);
+
+            } catch (error) {
+                clearInterval(progressInterval);
+                showError(error.message);
+                elements.progressSection.classList.remove('visible');
+            } finally {
+                elements.processButton.disabled = false;
+            }
+        });
+
+        // 精度検証結果を表示
+        function displayAccuracyResults(validationResults) {
+            if (!validationResults || !validationResults.train_ratios) {
+                return;
+            }
+
+            const trainRatios = validationResults.train_ratios;
+            const accuracyScores = validationResults.accuracy_scores;
+            const sampleCounts = validationResults.sample_counts;
+
+            // Chart.js でグラフ作成
+            const ctx = document.getElementById('accuracyChart').getContext('2d');
+            
+            // 既存のチャートがあれば破棄
+            if (accuracyChart) {
+                accuracyChart.destroy();
+            }
+
+            const datasets = [];
+            const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
+            let colorIndex = 0;
+
+            // 各分類レベルのデータセット作成
+            Object.keys(accuracyScores).forEach(targetCol => {
+                const scores = accuracyScores[targetCol];
+                let label = targetCol.replace('predicted_', '');
+                
+                // 日本語ラベルに変換
+                if (label === 'category') label = 'カテゴリー';
+                else if (label === 'subcategory') label = 'サブカテゴリー';
+                else if (label === 'segment') label = 'セグメント';
+                else if (label === 'subsegment') label = 'サブセグメント';
+                
+                datasets.push({
+                    label: label,
+                    data: scores,
+                    borderColor: colors[colorIndex % colors.length],
+                    backgroundColor: colors[colorIndex % colors.length] + '20',
+                    fill: false,
+                    tension: 0.1
+                });
+                colorIndex++;
+            });
+
+            accuracyChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trainRatios.map(ratio => `${Math.round(ratio * 100)}%`),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: '学習データ量 vs 予測精度',
+                            color: '#60a5fa',
+                            font: { size: 16 }
+                        },
+                        legend: {
+                            labels: { color: '#cbd5e1' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '学習データ割合',
+                                color: '#94a3b8'
+                            },
+                            ticks: { color: '#94a3b8' },
+                            grid: { color: 'rgba(59, 130, 246, 0.2)' }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '正答率',
+                                color: '#94a3b8'
+                            },
+                            ticks: { 
+                                color: '#94a3b8',
+                                callback: function(value) {
+                                    return Math.round(value * 100) + '%';
+                                }
+                            },
+                            grid: { color: 'rgba(59, 130, 246, 0.2)' },
+                            min: 0,
+                            max: 1
+                        }
+                    }
+                }
+            });
+
+            // 詳細テーブル作成
+            const table = document.getElementById('accuracyTable');
+            let tableHtml = `
+                <thead>
+                    <tr>
+                        <th>学習データ割合</th>
+                        <th>学習件数</th>
+                        <th>検証件数</th>
+                        <th>カテゴリー</th>
+                        <th>サブカテゴリー</th>
+                        <th>セグメント</th>
+                        <th>サブセグメント</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            trainRatios.forEach((ratio, index) => {
+                const sampleCount = sampleCounts[index];
+                tableHtml += `
+                    <tr>
+                        <td>${Math.round(ratio * 100)}%</td>
+                        <td>${sampleCount.train}</td>
+                        <td>${sampleCount.test}</td>
+                        <td>${Math.round((accuracyScores['predicted_category'] || [])[index] * 100)}%</td>
+                        <td>${Math.round((accuracyScores['predicted_subcategory'] || [])[index] * 100)}%</td>
+                        <td>${Math.round((accuracyScores['predicted_segment'] || [])[index] * 100)}%</td>
+                        <td>${Math.round((accuracyScores['predicted_subsegment'] || [])[index] * 100)}%</td>
+                    </tr>
+                `;
+            });
+
+            tableHtml += '</tbody>';
+            table.innerHTML = tableHtml;
+
+            // サマリー作成
+            const summaryDiv = document.getElementById('accuracySummary');
+            const bestRatio = trainRatios[trainRatios.length - 1];
+            const bestIndex = trainRatios.length - 1;
+            
+            const bestScores = {
+                category: Math.round((accuracyScores['predicted_category'] || [])[bestIndex] * 100),
+                subcategory: Math.round((accuracyScores['predicted_subcategory'] || [])[bestIndex] * 100),
+                segment: Math.round((accuracyScores['predicted_segment'] || [])[bestIndex] * 100),
+                subsegment: Math.round((accuracyScores['predicted_subsegment'] || [])[bestIndex] * 100)
+            };
+
+            summaryDiv.innerHTML = `
+                <h4 style="color: #10b981; margin-bottom: 0.5rem;">検証結果サマリー</h4>
+                <p style="color: #cbd5e1; margin-bottom: 0.3rem;"><strong>最高精度時（学習データ${Math.round(bestRatio * 100)}%）:</strong></p>
+                <p style="color: #cbd5e1; margin-bottom: 0.3rem;">カテゴリー: ${bestScores.category}% | サブカテゴリー: ${bestScores.subcategory}% | セグメント: ${bestScores.segment}% | サブセグメント: ${bestScores.subsegment}%</p>
+                <p style="color: #cbd5e1; margin-bottom: 0.3rem;"><strong>検証データ総数:</strong> ${sampleCounts[0].train + sampleCounts[0].test}件</p>
+                <p style="color: #cbd5e1;">学習データ量が多いほど予測精度が向上する傾向が確認できます。</p>
+            `;
+        }
+
+        // 結果表示
+        function displayResults(data) {
+            const stats = data.statistics;
+            const resultStats = document.getElementById('resultStats');
+            resultStats.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.total}</div>
+                    <div class="stat-label">総件数</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.jan_matched}</div>
+                    <div class="stat-label">JAN一致</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.ml_high}</div>
+                    <div class="stat-label">高信頼度</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.ml_medium}</div>
+                    <div class="stat-label">中信頼度</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.ml_low}</div>
+                    <div class="stat-label">低信頼度</div>
+                </div>
+            `;
+
+            elements.filterControls.classList.add('visible');
+            elements.paginationControls.classList.add('visible');
+            updateResultTable();
+        }
+
+        // フィルター機能の設定
+        function setupFilters() {
+            const searchInput = document.getElementById('searchInput');
+            const statusFilter = document.getElementById('statusFilter');
+            const confidenceFilter = document.getElementById('confidenceFilter');
+            const itemsPerPageSelect = document.getElementById('itemsPerPage');
+            const clearFiltersBtn = document.getElementById('clearFiltersBtn');
+
+            function applyFilters() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const statusFilterValue = statusFilter.value;
+                const confidenceFilterValue = confidenceFilter.value;
+
+                filteredResults = allResults.filter(result => {
+                    const matchesSearch = !searchTerm || 
+                        (result.jan && result.jan.toLowerCase().includes(searchTerm)) ||
+                        (result.product_name && result.product_name.toLowerCase().includes(searchTerm));
+
+                    const matchesStatus = statusFilterValue === 'all' || result.status === statusFilterValue;
+
+                    let matchesConfidence = true;
+                    if (confidenceFilterValue !== 'all') {
+                        const confidence = parseFloat(result.confidence);
+                        if (confidenceFilterValue === 'high') {
+                            matchesConfidence = confidence >= 0.7;
+                        } else if (confidenceFilterValue === 'medium') {
+                            matchesConfidence = confidence >= 0.4 && confidence < 0.7;
+                        } else if (confidenceFilterValue === 'low') {
+                            matchesConfidence = confidence < 0.4;
+                        }
+                    }
+
+                    return matchesSearch && matchesStatus && matchesConfidence;
+                });
+
+                currentPage = 1;
+                updateResultTable();
+            }
+
+            searchInput.addEventListener('input', applyFilters);
+            statusFilter.addEventListener('change', applyFilters);
+            confidenceFilter.addEventListener('change', applyFilters);
+            
+            itemsPerPageSelect.addEventListener('change', () => {
+                const selectedValue = itemsPerPageSelect.value;
+                itemsPerPage = selectedValue === 'all' ? filteredResults.length : parseInt(selectedValue);
+                currentPage = 1;
+                updateResultTable();
+            });
+
+            clearFiltersBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                statusFilter.value = 'all';
+                confidenceFilter.value = 'all';
+                applyFilters();
+            });
+
+            // ページネーション
+            document.getElementById('prevPageBtn').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateResultTable();
+                }
+            });
+
+            document.getElementById('nextPageBtn').addEventListener('click', () => {
+                const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateResultTable();
+                }
+            });
+        }
+
+        // 結果テーブル更新
+        function updateResultTable() {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = itemsPerPage === filteredResults.length ? filteredResults.length : startIndex + itemsPerPage;
+            const pageResults = filteredResults.slice(startIndex, endIndex);
+
+            const tableWrapper = document.getElementById('tableWrapper');
+            let tableHtml = `
+                <div class="table-row table-header">
+                    <div>JAN</div>
+                    <div>商品名</div>
+                    <div>予測カテゴリー</div>
+                    <div>予測サブカテゴリー</div>
+                    <div>予測セグメント</div>
+                    <div>予測サブセグメント</div>
+                    <div>信頼度</div>
+                    <div>ステータス</div>
+                    <div>手法</div>
+                </div>
+            `;
+
+            pageResults.forEach(result => {
+                const confidence = parseFloat(result.confidence);
+                let rowClass = '';
+                let statusText = '';
+                
+                if (result.status === 'jan_matched') {
+                    rowClass = 'jan-matched';
+                    statusText = 'JAN一致';
+                } else if (result.status === 'ml_high') {
+                    rowClass = 'confidence-high';
+                    statusText = '高信頼度';
+                } else if (result.status === 'ml_medium') {
+                    rowClass = 'confidence-medium';
+                    statusText = '中信頼度';
+                } else {
+                    rowClass = 'confidence-low';
+                    statusText = '低信頼度';
+                }
+
+                tableHtml += `
+                    <div class="table-row ${rowClass}">
+                        <div title="${result.jan || ''}">${result.jan || ''}</div>
+                        <div title="${result.product_name || ''}">${result.product_name || ''}</div>
+                        <div title="${result.predicted_category || ''}">${result.predicted_category || ''}</div>
+                        <div title="${result.predicted_subcategory || ''}">${result.predicted_subcategory || ''}</div>
+                        <div title="${result.predicted_segment || ''}">${result.predicted_segment || ''}</div>
+                        <div title="${result.predicted_subsegment || ''}">${result.predicted_subsegment || ''}</div>
+                        <div>${(confidence * 100).toFixed(1)}%</div>
+                        <div>${statusText}</div>
+                        <div>${result.method || ''}</div>
+                    </div>
+                `;
+            });
+
+            tableWrapper.innerHTML = tableHtml;
+
+            document.getElementById('filterInfo').textContent = 
+                `表示中: ${pageResults.length}件 / フィルター結果: ${filteredResults.length}件 / 総件数: ${allResults.length}件`;
+
+            const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
+            const pageInfo = document.getElementById('pageInfo');
+            const prevPageBtn = document.getElementById('prevPageBtn');
+            const nextPageBtn = document.getElementById('nextPageBtn');
+            
+            pageInfo.textContent = `${currentPage} / ${totalPages}ページ`;
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
+        }
+
+        // ダウンロード
+        elements.downloadButton.addEventListener('click', async () => {
+            if (!currentDownloadId) return;
+            
+            window.location.href = `/api/product-classification/download/${currentDownloadId}`;
+            
+            setTimeout(async () => {
+                await fetch(`/api/product-classification/cleanup/${currentDownloadId}`, {
+                    method: 'DELETE'
+                });
+            }, 5000);
+        });
+
+        // エラー表示
+        function showError(message) {
+            elements.errorMessage.textContent = `⚠️ ${message}`;
+            elements.errorMessage.classList.add('visible');
+            setTimeout(() => {
+                elements.errorMessage.classList.remove('visible');
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
