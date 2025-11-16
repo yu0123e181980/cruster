@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, send_file, redirect,
 import os
 import logging
 from datetime import datetime
+import threading
 
 # ログ設定
 logging.basicConfig(level=logging.INFO)
@@ -174,11 +175,22 @@ os.makedirs('uploads', exist_ok=True)
 os.makedirs('temp_uploads', exist_ok=True)
 os.makedirs('temp_results', exist_ok=True)
 
-if __name__ == '__main__':
+def run_flask_app():
+    """Flask アプリケーションを実行する関数"""
     logger.info("カテゴリーマネジメントツール起動中...")
     logger.info("利用可能な機能:")
     logger.info("1. 棚割マスタ処理 - /feature/1 [実装済み]")
     logger.info("2. 商品自動分類 - /feature/2 [実装済み]")
     logger.info("3-8. その他の機能 [開発中]")
-    
-    app.run(debug=True, host='0.0.0.0', port=5000)
+
+    # Streamlitから実行される場合はデバッグモードとリローダーを無効化
+    # これにより、シグナルハンドラーの問題を回避
+    app.run(debug=False, host='0.0.0.0', port=5000, use_reloader=False, threaded=True)
+
+if __name__ == '__main__':
+    # 別スレッドでFlaskアプリを起動
+    flask_thread = threading.Thread(target=run_flask_app, daemon=True)
+    flask_thread.start()
+
+    # メインスレッドは終了せずに待機
+    flask_thread.join()
