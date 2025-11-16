@@ -2,6 +2,15 @@
 商品自動分類ツール - Streamlitメインアプリ
 """
 import streamlit as st
+
+# ページ設定（最初に実行）
+st.set_page_config(
+    page_title="商品自動分類ツール",
+    page_icon="🥫",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 import pandas as pd
 import numpy as np
 import uuid
@@ -10,26 +19,23 @@ import sys
 from pathlib import Path
 from multiprocessing import cpu_count
 import matplotlib.pyplot as plt
-import shap
 
 # パスの設定
 sys.path.insert(0, str(Path(__file__).parent))
 
-from services.classification_service import ClassificationService
-from services.feature_importance import get_feature_importance_data
-from services.shap_explainer import get_shap_values, create_shap_waterfall
-from utils.file_handler import load_file, detect_column_mapping
-from utils.preprocessing import validate_dataframe
-from utils.multiprocess_utils import get_optimal_process_count
-
-
-# ページ設定
-st.set_page_config(
-    page_title="商品自動分類ツール",
-    page_icon="🥫",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# モジュールのインポート
+try:
+    from services.classification_service import ClassificationService
+    from services.feature_importance import get_feature_importance_data
+    from services.shap_explainer import get_shap_values, create_shap_waterfall
+    from utils.file_handler import load_file, detect_column_mapping
+    from utils.preprocessing import validate_dataframe
+    from utils.multiprocess_utils import get_optimal_process_count
+    import shap
+except ImportError as e:
+    st.error(f"❌ モジュールのインポートエラー: {e}")
+    st.info("依存関係をインストールしてください: `pip install -r requirements.txt`")
+    st.stop()
 
 
 def init_session_state():
@@ -742,4 +748,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        st.error(f"❌ アプリケーションエラー: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
+        st.info("問題が解決しない場合は、ページを再読み込みしてください。")
